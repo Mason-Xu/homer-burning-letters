@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Homeric Epistles — Burning Letters</title>
+  <!-- 100% Free Open-Source (SIL OFL) Literary & Calligraphic Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400&family=La+Belle+Aurore&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #f9f8f4;
+      color: #23201d;
+      font-family: 'EB Garamond', 'Cormorant Garamond', Georgia, serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    #stage.match-cursor,
+    #stage.match-cursor canvas {
+      cursor: none !important;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #gl-canvas {
+      z-index: 1;
+    }
+
+    #fx-canvas {
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Minimal gallery-grade corner chrome */
+    .chrome {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      padding: clamp(18px, 2.8vw, 34px) clamp(20px, 3.2vw, 40px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.12em;
+      color: rgba(45, 40, 35, 0.58);
+    }
+
+    .chrome-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .chrome-row.bottom {
+      align-items: flex-end;
+    }
+
+    .chrome-group {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .chrome-btn {
+      pointer-events: auto;
+      background: none;
+      border: none;
+      padding: 4px 2px;
+      font: inherit;
+      letter-spacing: inherit;
+      color: rgba(45, 40, 35, 0.62);
+      cursor: pointer;
+      transition: color 0.25s ease;
+    }
+
+    .chrome-btn:hover {
+      color: rgba(18, 15, 12, 0.96);
+    }
+
+    .chrome-label {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      line-height: 1.45;
+    }
+
+    .chrome-label .sub {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-style: italic;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: rgba(45, 40, 35, 0.48);
+    }
+
+    .chapter-dots {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      pointer-events: auto;
+    }
+
+    .chapter-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      border: 1px solid rgba(45, 40, 35, 0.34);
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.25s ease, background-color 0.35s ease, border-color 0.35s ease;
+    }
+
+    .chapter-dot:hover {
+      transform: scale(1.38);
+      border-color: rgba(45, 40, 35, 0.8);
+    }
+
+    .chapter-dot.active {
+      background-color: var(--accent, #2f7d44);
+      border-color: var(--accent, #2f7d44);
+      transform: scale(1.22);
+    }
+
+    .hint-pill {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(20px, 3.2vh, 36px);
+      transform: translateX(-50%);
+      z-index: 9;
+      pointer-events: none;
+      font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+      font-style: italic;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      color: rgba(58, 50, 42, 0.46);
+      transition: opacity 0.9s ease;
+      white-space: nowrap;
+    }
+
+    .hint-pill.hidden {
+      opacity: 0;
+    }
+
+    /* Custom wooden matchstick cursor (phosphorus tip anchored at 6,6) */
+    #match-cursor {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 48px;
+      height: 48px;
+      pointer-events: none;
+      z-index: 50;
+      opacity: 0;
+      transform: translate3d(-100px, -100px, 0);
+      transition: opacity 0.16s ease;
+      will-change: transform;
+    }
+
+    #match-cursor.visible {
+      opacity: 1;
+    }
+
+    #match-cursor svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      filter: drop-shadow(0 2px 3px rgba(28, 18, 10, 0.24));
+      transform-origin: 6px 6px;
+      transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #match-cursor.striking svg {
+      transform: rotate(-18deg) scale(0.92);
+    }
+
+    @keyframes tipFlicker {
+      0%, 100% { transform: scale(1) rotate(-3deg); opacity: 0.92; }
+      50% { transform: scale(1.12, 1.18) rotate(3deg); opacity: 1; }
+    }
+
+    #match-flame {
+      transform-origin: 6px 6px;
+      animation: tipFlicker 0.24s ease-in-out infinite;
+    }
+
+    @media (max-width: 640px) {
+      .chrome {
+        font-size: 9.5px;
+        padding: 14px 16px;
+      }
+      .hide-mobile {
+        display: none;
+      }
+      #match-cursor {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="stage" class="match-cursor" aria-label="Click anywhere on the paper to ignite the letter">
+    <canvas id="gl-canvas"></canvas>
+    <canvas id="fx-canvas"></canvas>
+  </div>
+
+  <div class="chrome">
+    <div class="chrome-row top">
+      <div class="chrome-group">
+        <span id="chapter-tag">( HOMER · I / V )</span>
+      </div>
+      <div class="chrome-group">
+        <button id="sound-btn" class="chrome-btn" type="button" title="Toggle procedural fire audio">( SOUND ON )</button>
+      </div>
+    </div>
+
+    <div class="chrome-row bottom">
+      <div class="chrome-group">
+        <div class="chrome-label">
+          <span>HOMERIC EPISTLES</span>
+          <span class="sub">The Odyssey &amp; The Iliad</span>
+        </div>
+        <div class="chrome-label hide-mobile" style="margin-left: 16px;">
+          <span id="flame-name">OLIVE EMERALD</span>
+          <span class="sub" id="flame-sub">Book I · Invocation</span>
+        </div>
+      </div>
+
+      <div class="chrome-group">
+        <div class="chapter-dots" id="chapter-dots" aria-label="Chapter navigation"></div>
+        <span id="page-counter">01 / 05</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint-pill" id="hint-pill">Click anywhere on the paper to ignite</div>
+
+  <!-- Crisp wooden matchstick cursor with subtle glowing tip -->
+  <div id="match-cursor" aria-hidden="true">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Warm halo on strike / ignition -->
+      <circle id="match-glow" cx="6.5" cy="6.5" r="11" fill="url(#glowGrad)" opacity="0.22" />
+      <!-- Tiny dancing flame teardrop when striking -->
+      <g id="match-flame" opacity="0">
+        <path d="M6.5 8 C3.2 5.2 3.8 1.2 6.5 -2.8 C9.2 1.2 9.8 5.2 6.5 8 Z" fill="url(#flameTipGrad)" />
+        <path d="M6.5 7 C5.0 5.3 5.3 2.9 6.5 0.6 C7.7 2.9 8.0 5.3 6.5 7 Z" fill="#fff7d1" opacity="0.92" />
+      </g>
+      <!-- Square-cut pale wooden matchstick shaft -->
+      <polygon points="10.2,13.0 13.0,10.2 39.2,36.4 36.4,39.2" fill="#e2c799" />
+      <polygon points="11.6,11.6 13.0,10.2 39.2,36.4 37.8,37.8" fill="#c7a572" />
+      <polygon points="10.2,13.0 11.4,11.8 37.6,38.0 36.4,39.2" fill="#f2dec0" />
+      <!-- Slightly charred wooden neck -->
+      <polygon points="9.2,12.0 12.0,9.2 15.8,13.0 13.0,15.8" fill="#6b4426" opacity="0.82" />
+      <!-- Iconic rounded crimson-brown phosphorus match head -->
+      <ellipse cx="7.4" cy="7.4" rx="5.2" ry="3.7" transform="rotate(45 7.4 7.4)" fill="#842b22" />
+      <ellipse cx="6.7" cy="6.7" rx="3.4" ry="2.0" transform="rotate(45 6.7 6.7)" fill="#b34032" />
+      <ellipse cx="5.6" cy="5.5" rx="1.4" ry="0.8" transform="rotate(45 5.6 5.5)" fill="#e3866b" opacity="0.72" />
+      <defs>
+        <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#fff4c4" stop-opacity="0.95" />
+          <stop offset="45%" stop-color="#ff8c38" stop-opacity="0.52" />
+          <stop offset="100%" stop-color="#ff5514" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="flameTipGrad" x1="6.5" y1="-2.8" x2="6.5" y2="8" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#ff6b22" stop-opacity="0.9" />
+          <stop offset="55%" stop-color="#ffae34" stop-opacity="0.95" />
+          <stop offset="100%" stop-color="#ffe98a" stop-opacity="0.95" />
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // =========================================================================
+      // 1. FIVE CURATED HOMERIC PASSAGES (English Literary Edition + Flame Hues)
+      // =========================================================================
+      const PASSAGES = [
+        {
+          roman: 'I',
+          greek: 'Ἄνδρα μοι ἔννεπε, Μοῦσα, πολύτροπον…',
+          flameEn: 'OLIVE EMERALD',
+          bookSub: 'Book I · Invocation to the Muse',
+          accentHex: '#2f7d44',
+          flameOuter: [0.22, 0.62, 0.26],
+          flameMid:   [0.44, 0.76, 0.28],
+          flameInner: [0.97, 0.67, 0.25],
+          emberHex:   '#e88b32',
+          title: 'Sing in me, Muse, of the man of many ways.',
+          paragraphs: [
+            'Tell me, Muse, of the wanderer of countless turns, driven far astray after he sacked the sacred citadel of Troy. Many were the cities he beheld, and many the minds of men he came to know.',
+            'Many sorrows too he suffered in his heart upon the open sea, striving to guard his own breath and win the homecoming of his companions.',
+            'Through ten long years of salt and storm, all his spirit longed for was a single plume of smoke rising from his native hearth.'
+          ],
+          signature: 'Homer, The Odyssey · Book I'
+        },
+        {
+          roman: 'II',
+          greek: 'Οἵη περ φύλλων γενεή, τοίη δὲ καὶ ἀνδρῶν…',
+          flameEn: 'ROSY DAWN',
+          bookSub: 'Book VI · Generations of Leaves',
+          accentHex: '#cf5e57',
+          flameOuter: [0.86, 0.41, 0.41],
+          flameMid:   [0.95, 0.64, 0.56],
+          flameInner: [0.98, 0.72, 0.32],
+          emberHex:   '#ee7846',
+          title: 'Like the generations of leaves, so are the lives of men.',
+          paragraphs: [
+            'High-hearted son of Tydeus, why ask of my lineage? Even as are the generations of leaves upon the boughs, such are those of mortal men.',
+            'The wind scatters the dry leaves down upon the earth, yet the budding forest puts forth others anew whenever the season of spring returns.',
+            'So it is with the race of men: one generation blooms into the light, and another quietly passes away.'
+          ],
+          signature: 'Homer, The Iliad · Book VI'
+        },
+        {
+          roman: 'III',
+          greek: 'Πόντον ἐπ᾽ ἀτρύγετον δερκέσκετο δάκρυα λείβων…',
+          flameEn: 'WINE-DARK VIOLET',
+          bookSub: 'Book V · The Wine-Dark Sea',
+          accentHex: '#7357b8',
+          flameOuter: [0.46, 0.34, 0.78],
+          flameMid:   [0.64, 0.56, 0.88],
+          flameInner: [0.95, 0.58, 0.30],
+          emberHex:   '#b678f2',
+          title: 'Gazing out across the wine-dark sea.',
+          paragraphs: [
+            'All day he sat upon the rocks and sands of the shore, breaking his heart with tears and sighs, gazing out across the barren, wine-dark sea.',
+            'The nymph had promised him ageless immortality beside her on that fragrant isle, yet his heart would not be swayed from its mortal longing.',
+            'He yearned only to see the faintest wisp of smoke leaping upward from his own land, and having seen it, to be content to die.'
+          ],
+          signature: 'Homer, The Odyssey · Book V'
+        },
+        {
+          roman: 'IV',
+          greek: 'Ἐν μὲν γαῖαν ἔτευξ᾽, ἐν δ᾽ οὐρανόν, ἐν δὲ θάλασσαν…',
+          flameEn: 'HEPHAESTUS GOLD',
+          bookSub: 'Book XVIII · The Shield of Achilles',
+          accentHex: '#c47b2b',
+          flameOuter: [0.86, 0.52, 0.16],
+          flameMid:   [0.96, 0.74, 0.34],
+          flameInner: [1.00, 0.88, 0.52],
+          emberHex:   '#f5a438',
+          title: 'He wrought the earth, the heavens, and the sea.',
+          paragraphs: [
+            'Upon the shield he fashioned the earth, the vaulted sky, and the sea, the tireless sun and the moon waxing full, and all the constellations that crown the heavens.',
+            'There shone the Pleiades, the Hyades, mighty Orion, and the Bear—which turns forever in her place watching Orion, and alone has no share in the baths of Ocean.',
+            'Around the outermost rim of that steadfast shield he set the mighty stream of the river Ocean, cradling the whole mortal world in bronze and gold.'
+          ],
+          signature: 'Homer, The Iliad · Book XVIII'
+        },
+        {
+          roman: 'V',
+          greek: 'Κύσε δὲ ζείδωρον ἄρουραν…',
+          flameEn: 'AEGEAN MIST',
+          bookSub: 'Book XIII · Return to Ithaca',
+          accentHex: '#2f6e8f',
+          flameOuter: [0.22, 0.54, 0.76],
+          flameMid:   [0.44, 0.74, 0.86],
+          flameInner: [0.96, 0.64, 0.28],
+          emberHex:   '#5bb8e6',
+          title: 'When the mist parts, behold the harbor of Ithaca.',
+          paragraphs: [
+            'With that word Athena scattered the pale morning mist, and all the familiar contours of the island came clear before his eyes.',
+            'He knew again the sheltered harbor of Phorcys, the long-leaved olive tree standing at the head of the bay, and the timbered slopes of Mount Neriton beyond.',
+            'Then the much-enduring wanderer felt a quiet joy rise in his breast, and kneeling down, he kissed the grain-giving earth of home.'
+          ],
+          signature: 'Homer, The Odyssey · Book XIII'
+        }
+      ];
+
+      // =========================================================================
+      // 2. PROCEDURAL WEB AUDIO (Delicate Match Strike + Slow Smoldering Crackle)
+      // =========================================================================
+      class FireAudio {
+        constructor() {
+          this.enabled = true;
+          this.ctx = null;
+          this.masterGain = null;
+          this.crackleGain = null;
+          this.noiseBuffer = null;
+          this.crackleTimer = 0;
+        }
+
+        ensureContext() {
+          if (!this.enabled) return false;
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return false;
+            this.ctx = new AudioCtx();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.36;
+            this.masterGain.connect(this.ctx.destination);
+
+            const sampleRate = this.ctx.sampleRate;
+            const len = sampleRate * 2;
+            this.noiseBuffer = this.ctx.createBuffer(1, len, sampleRate);
+            const data = this.noiseBuffer.getChannelData(0);
+            let last = 0;
+            for (let i = 0; i < len; i++) {
+              const white = Math.random() * 2 - 1;
+              last = (last + 0.06 * white) / 1.06;
+              data[i] = last * 3.4;
+            }
+
+            const src = this.ctx.createBufferSource();
+            src.buffer = this.noiseBuffer;
+            src.loop = true;
+
+            const bp = this.ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.value = 310;
+            bp.Q.value = 0.75;
+
+            this.crackleGain = this.ctx.createGain();
+            this.crackleGain.gain.value = 0.0001;
+
+            src.connect(bp);
+            bp.connect(this.crackleGain);
+            this.crackleGain.connect(this.masterGain);
+            src.start();
+          }
+          if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+          return true;
+        }
+
+        playIgnite() {
+          if (!this.ensureContext()) return;
+          const now = this.ctx.currentTime;
+          const src = this.ctx.createBufferSource();
+          src.buffer = this.noiseBuffer;
+
+          const bp = this.ctx.createBiquadFilter();
+          bp.type = 'bandpass';
+          bp.frequency.setValueAtTime(1850, now);
+          bp.frequency.exponentialRampToValueAtTime(480, now + 0.25);
+          bp.Q.value = 1.25;
+
+          const g = this.ctx.createGain();
+          g.gain.setValueAtTime(0.001, now);
+          g.gain.linearRampToValueAtTime(0.28, now + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+          src.connect(bp);
+          bp.connect(g);
+          g.connect(this.masterGain);
+          src.start(now, Math.random() * 1.2, 0.3);
+        }
+
+        playCracklePop(intensity) {
+          if (!this.ctx || !this.enabled || this.ctx.state !== 'running') return;
+          const now = this.ctx.currentTime;
+          const src = this.ctx.createBufferSource();
+          src.buffer = this.noiseBuffer;
+
+          const bp = this.ctx.createBiquadFilter();
+          bp.type = 'bandpass';
+          bp.frequency.value = 1500 + Math.random() * 2600;
+          bp.Q.value = 3.8 + Math.random() * 3.0;
+
+          const g = this.ctx.createGain();
+          const peak = (0.035 + Math.random() * 0.08) * intensity;
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(peak, now + 0.004);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + 0.024 + Math.random() * 0.032);
+
+          src.connect(bp);
+          bp.connect(g);
+          g.connect(this.masterGain);
+          src.start(now, Math.random() * 1.5, 0.065);
+        }
+
+        update(dt, intensity) {
+          if (!this.ctx || !this.crackleGain) return;
+          const target = this.enabled ? intensity * 0.14 : 0.0001;
+          this.crackleGain.gain.setTargetAtTime(Math.max(0.0001, target), this.ctx.currentTime, 0.16);
+
+          if (this.enabled && intensity > 0.05) {
+            this.crackleTimer -= dt;
+            if (this.crackleTimer <= 0) {
+              this.playCracklePop(intensity);
+              this.crackleTimer = 0.07 + Math.random() * (0.20 / Math.max(0.25, intensity));
+            }
+          }
+        }
+
+        toggle() {
+          this.enabled = !this.enabled;
+          if (!this.enabled && this.crackleGain && this.ctx) {
+            this.crackleGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.06);
+          }
+          return this.enabled;
+        }
+      }
+
+      // =========================================================================
+      // 3. HANDMADE COTTON PAPER & FINE ENGLISH EDITORIAL TYPOGRAPHY
+      // =========================================================================
+      let paperBaseCanvas = null;
+
+      function createSeededRandom(seed) {
+        let s = seed >>> 0;
+        return () => {
+          s = (s * 1664525 + 1013904223) >>> 0;
+          return s / 4294967296;
+        };
+      }
+
+      function buildPaperBase(width, height, dpr) {
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.floor(width * dpr));
+        c.height = Math.max(1, Math.floor(height * dpr));
+        const ctx = c.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        // Warm cotton rag paper base
+        ctx.fillStyle = '#faf9f5';
+        ctx.fillRect(0, 0, width, height);
+
+        const grad = ctx.createRadialGradient(
+          width * 0.5, height * 0.46, Math.min(width, height) * 0.12,
+          width * 0.5, height * 0.5, Math.max(width, height) * 0.78
+        );
+        grad.addColorStop(0, 'rgba(255, 255, 253, 0.45)');
+        grad.addColorStop(0.7, 'rgba(246, 243, 236, 0.15)');
+        grad.addColorStop(1, 'rgba(228, 223, 212, 0.34)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+
+        const rand = createSeededRandom(42071);
+
+        // Subtle mineral specks
+        const speckCount = Math.floor((width * height) / 960);
+        for (let i = 0; i < speckCount; i++) {
+          const x = rand() * width;
+          const y = rand() * height;
+          const r = 0.35 + rand() * 0.95;
+          const alpha = 0.035 + rand() * 0.085;
+          const tone = rand() > 0.35 ? '176, 168, 156' : '115, 108, 98';
+          ctx.fillStyle = `rgba(${tone}, ${alpha.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Delicate cotton pulp fibers
+        const fiberCount = Math.floor((width * height) / 3800);
+        ctx.lineCap = 'round';
+        for (let i = 0; i < fiberCount; i++) {
+          const x = rand() * width;
+          const y = rand() * height;
+          const len = 3 + rand() * 11;
+          const ang = rand() * Math.PI * 2;
+          const bend = (rand() - 0.5) * 4.5;
+          const alpha = 0.05 + rand() * 0.13;
+          ctx.strokeStyle = rand() > 0.25
+            ? `rgba(165, 158, 146, ${alpha.toFixed(3)})`
+            : `rgba(110, 102, 92, ${(alpha * 0.9).toFixed(3)})`;
+          ctx.lineWidth = 0.45 + rand() * 0.55;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.quadraticCurveTo(
+            x + Math.cos(ang) * len * 0.5 - Math.sin(ang) * bend,
+            y + Math.sin(ang) * len * 0.5 + Math.cos(ang) * bend,
+            x + Math.cos(ang) * len,
+            y + Math.sin(ang) * len
+          );
+          ctx.stroke();
+        }
+
+        // Whisper-faint unfolded letter crease
+        const foldY = Math.round(height * 0.5) + 0.5;
+        const foldGrad = ctx.createLinearGradient(0, foldY - 9, 0, foldY + 9);
+        foldGrad.addColorStop(0, 'rgba(180, 172, 158, 0)');
+        foldGrad.addColorStop(0.48, 'rgba(165, 156, 142, 0.015)');
+        foldGrad.addColorStop(0.52, 'rgba(255, 255, 255, 0.08)');
+        foldGrad.addColorStop(1, 'rgba(180, 172, 158, 0)');
+        ctx.fillStyle = foldGrad;
+        ctx.fillRect(0, foldY - 9, width, 18);
+
+        return c;
+      }
+
+      function wrapEnglish(ctx, text, maxWidth) {
+        const words = text.split(' ');
+        const lines = [];
+        let line = '';
+        for (let i = 0; i < words.length; i++) {
+          const test = line ? line + ' ' + words[i] : words[i];
+          if (ctx.measureText(test).width > maxWidth && line) {
+            lines.push(line);
+            line = words[i];
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+        return lines;
+      }
+
+      function drawMinimalLaurelFlourish(ctx, x, y, accentHex) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.strokeStyle = accentHex;
+        ctx.globalAlpha = 0.34;
+        ctx.lineWidth = 0.9;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 2);
+        ctx.quadraticCurveTo(9, -3, 19, 1);
+        ctx.stroke();
+
+        ctx.fillStyle = accentHex;
+        ctx.globalAlpha = 0.28;
+        ctx.beginPath();
+        ctx.ellipse(7, -2.5, 3.2, 1.3, -0.45, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(13, 2.5, 3.0, 1.2, 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function renderLetterCanvas(pageIndex, width, height, dpr) {
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.floor(width * dpr));
+        c.height = Math.max(1, Math.floor(height * dpr));
+        const ctx = c.getContext('2d');
+
+        if (!paperBaseCanvas || paperBaseCanvas.width !== c.width || paperBaseCanvas.height !== c.height) {
+          paperBaseCanvas = buildPaperBase(width, height, dpr);
+        }
+        ctx.drawImage(paperBaseCanvas, 0, 0);
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+
+        // Distinct subtle cotton fibers per sheet
+        const pageRand = createSeededRandom(1009 + pageIndex * 997);
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 45; i++) {
+          const x = pageRand() * width;
+          const y = pageRand() * height;
+          const len = 4 + pageRand() * 10;
+          const ang = pageRand() * Math.PI * 2;
+          ctx.strokeStyle = `rgba(148, 140, 128, ${(0.04 + pageRand() * 0.08).toFixed(3)})`;
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len);
+          ctx.stroke();
+        }
+
+        const passage = PASSAGES[pageIndex];
+        const compact = width < 680;
+        const colWidth = Math.min(compact ? width - 56 : 535, width * 0.78);
+        const scale = Math.max(0.80, Math.min(1.10, width / 1180));
+
+        const greekFontSize = Math.round(13 * scale);
+        const titleFontSize = Math.round(33 * scale);
+        const bodyFontSize = Math.round(18.5 * scale);
+        const bodyLineHeight = Math.round(bodyFontSize * 1.72);
+        const paraGap = Math.round(bodyFontSize * 1.18);
+        const sigFontSize = Math.round(26.5 * scale);
+
+        const greekFont = `italic 400 ${greekFontSize}px "Cormorant Garamond", Georgia, serif`;
+        const titleFont = `400 ${titleFontSize}px "La Belle Aurore", "Snell Roundhand", cursive`;
+        const bodyFont  = `400 ${bodyFontSize}px "EB Garamond", "Cormorant Garamond", Georgia, serif`;
+        const sigFont   = `400 ${sigFontSize}px "La Belle Aurore", "Snell Roundhand", cursive`;
+
+        ctx.font = titleFont;
+        const wrappedTitle = wrapEnglish(ctx, passage.title, colWidth + 32);
+
+        ctx.font = bodyFont;
+        const wrappedParas = passage.paragraphs.map(p => wrapEnglish(ctx, p, colWidth));
+
+        const totalBodyLines = wrappedParas.reduce((sum, lines) => sum + lines.length, 0);
+        const titleLineH = Math.round(titleFontSize * 1.15);
+        const greekBlockH = greekFontSize + 18;
+        const titleBlockH = wrappedTitle.length * titleLineH + 18;
+        const bodyBlockH = totalBodyLines * bodyLineHeight + (wrappedParas.length - 1) * paraGap;
+        const sigBlockH = sigFontSize + 28;
+        const totalBlockH = greekBlockH + titleBlockH + bodyBlockH + sigBlockH;
+
+        const colX = Math.round((width - colWidth) * 0.5);
+        let curY = Math.round((height - totalBlockH) * 0.49);
+
+        ctx.textBaseline = 'alphabetic';
+
+        // 1. Ancient Greek epigraph
+        ctx.font = greekFont;
+        ctx.fillStyle = 'rgba(112, 102, 90, 0.54)';
+        ctx.fillText(`${passage.roman}  ·  ${passage.greek}`, colX, curY + greekFontSize);
+        curY += greekBlockH;
+
+        // 2. Calligraphic handwritten title (La Belle Aurore)
+        ctx.font = titleFont;
+        ctx.fillStyle = '#1b1815';
+        wrappedTitle.forEach((line, idx) => {
+          ctx.fillText(line, colX - 3, curY + titleFontSize * 0.85 + idx * titleLineH);
+        });
+        curY += titleBlockH;
+
+        // 3. Classical literary serif body (EB Garamond)
+        ctx.font = bodyFont;
+        ctx.fillStyle = '#25211d';
+        wrappedParas.forEach((lines, pIdx) => {
+          lines.forEach((line) => {
+            ctx.fillText(line, colX, curY + bodyFontSize);
+            curY += bodyLineHeight;
+          });
+          if (pIdx < wrappedParas.length - 1) {
+            curY += paraGap;
+          }
+        });
+
+        // 4. Calligraphic signature + miniature olive-branch flourish
+        curY += Math.round(sigFontSize * 0.82);
+        ctx.font = sigFont;
+        ctx.fillStyle = '#211d19';
+        ctx.fillText(passage.signature, colX - 2, curY + sigFontSize * 0.62);
+
+        const sigW = ctx.measureText(passage.signature).width;
+        drawMinimalLaurelFlourish(ctx, colX + sigW + 14, curY + sigFontSize * 0.36, passage.accentHex);
+
+        ctx.restore();
+        return c;
+      }
+
+      // =========================================================================
+      // 4. WEBGL SHADERS: GPU PING-PONG SLOW IRREGULAR BURN + VOLUMETRIC SMOKE
+      // =========================================================================
+      const COMMON_NOISE_GLSL = `
+        float hash21(vec2 p) {
+          p = fract(p * vec2(127.1, 311.7));
+          p += dot(p, p + 34.53);
+          return fract(p.x * p.y);
+        }
+
+        float vnoise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f);
+          float a = hash21(i);
+          float b = hash21(i + vec2(1.0, 0.0));
+          float c = hash21(i + vec2(0.0, 1.0));
+          float d = hash21(i + vec2(1.0, 1.0));
+          return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+        }
+
+        float fbm4(vec2 p) {
+          float v = 0.0;
+          float a = 0.5;
+          mat2 rot = mat2(0.80, -0.60, 0.60, 0.80);
+          for (int i = 0; i < 4; i++) {
+            v += a * vnoise(p);
+            p = rot * p * 2.04 + vec2(17.3, 9.7);
+            a *= 0.5;
+          }
+          return v;
+        }
+
+        float fbm3(vec2 p) {
+          float v = 0.0;
+          float a = 0.52;
+          mat2 rot = mat2(0.80, -0.60, 0.60, 0.80);
+          for (int i = 0; i < 3; i++) {
+            v += a * vnoise(p);
+            p = rot * p * 2.08 + vec2(11.1, 5.4);
+            a *= 0.48;
+          }
+          return v;
+        }
+      `;
+
+      const VERT_SRC = `
+        attribute vec2 aPos;
+        varying vec2 vUv;
+        void main() {
+          vUv = aPos * 0.5 + 0.5;
+          gl_Position = vec4(aPos, 0.0, 1.0);
+        }
+      `;
+
+      // Pass A: Generate per-page heterogeneous paper fiber permeability map
+      // Extreme contrast between winding dry veins and dense paper knots produces
+      // wild irregular fractal branching AND real trapped unburned islands!
+      const PERM_FRAG_SRC = `
+        precision highp float;
+        varying vec2 vUv;
+        uniform float uAspect;
+        uniform float uSeed;
+        ${COMMON_NOISE_GLSL}
+
+        void main() {
+          vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
+          vec2 q = p * 5.2 + vec2(uSeed * 2.3, uSeed * 4.1);
+          vec2 warp = vec2(
+            fbm3(q + vec2(1.7, 3.1)),
+            fbm3(q + vec2(5.9, 2.4))
+          );
+          vec2 warp2 = vec2(
+            fbm3(p * 11.0 + warp * 1.4 + uSeed),
+            fbm3(p * 11.0 - warp * 1.2 + uSeed * 2.7)
+          );
+
+          // Winding fast dry veins (ridges)
+          float veinA = 1.0 - abs(fbm3(p * 6.8 + warp * 1.9 + uSeed) * 2.0 - 1.0);
+          float veinB = 1.0 - abs(fbm3(p * 14.5 + warp2 * 1.2 + uSeed * 1.9) * 2.0 - 1.0);
+          float veins = pow(clamp(veinA * 0.65 + veinB * 0.45, 0.0, 1.0), 1.35);
+
+          // Distinct small dense paper knots that resist burning until surrounded -> trapped islands!
+          float knotFieldA = fbm3(p * 16.5 + warp * 0.8 + uSeed * 3.1);
+          float knotFieldB = vnoise(p * 26.0 + warp2 * 0.9 + uSeed * 4.7);
+          float knots = smoothstep(0.56, 0.76, knotFieldA) * 0.75 + smoothstep(0.64, 0.84, knotFieldB) * 0.45;
+
+          // Macro dry/damp zones for asymmetric wild lobes
+          float macro = fbm4(q * 0.85 + warp * 2.1);
+
+          float perm = clamp(macro * 0.45 + veins * 0.72 - knots * 0.82, 0.02, 1.0);
+          float microFiber = fbm3(p * 32.0 + uSeed * 5.3);
+          float fineGrain = vnoise(p * 82.0 + uSeed * 1.9);
+
+          gl_FragColor = vec4(perm, microFiber, fineGrain, 1.0);
+        }
+      `;
+
+      // Pass B: Clear / reset simulation state to intact paper (fuel = 1.0, heat = 0.0)
+      const INIT_FRAG_SRC = `
+        precision highp float;
+        void main() {
+          gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+        }
+      `;
+
+      // Pass C: 2D Ping-Pong Reaction-Diffusion Paper Smoldering Simulation
+      // Packs 16-bit fuel into (R, G) for zero quantization at ultra-slow creeping speeds!
+      const SIM_FRAG_SRC = `
+        precision highp float;
+        varying vec2 vUv;
+
+        uniform sampler2D uState;
+        uniform sampler2D uPerm;
+        uniform vec2 uTexel;
+        uniform float uAspect;
+        uniform float uTime;
+        uniform float uDt;
+        uniform float uIgniteActive;
+        uniform vec2 uIgniteUv;
+
+        ${COMMON_NOISE_GLSL}
+
+        float unpackFuel(vec4 t) {
+          return (floor(t.r * 255.0 + 0.5) * 256.0 + floor(t.g * 255.0 + 0.5)) / 65535.0;
+        }
+
+        vec2 packFuel(float f) {
+          float v = clamp(floor(f * 65535.0 + 0.5), 0.0, 65535.0);
+          float hi = floor(v / 256.0) / 255.0;
+          float lo = mod(v, 256.0) / 255.0;
+          return vec2(hi, lo);
+        }
+
+        float nBurn(vec2 uv) {
+          float f = unpackFuel(texture2D(uState, clamp(uv, 0.0, 1.0)));
+          return smoothstep(0.76, 0.14, f);
+        }
+
+        void main() {
+          vec4 cur = texture2D(uState, vUv);
+          float fuel = unpackFuel(cur);
+          float prevHeat = cur.b;
+
+          vec3 perm = texture2D(uPerm, vUv).rgb;
+
+          // Inject tiny organic ignition pinhole at user click position
+          if (uIgniteActive > 0.5) {
+            vec2 dv = (vUv - uIgniteUv) * vec2(uAspect, 1.0);
+            float d = length(dv);
+            float nJitter = (perm.g - 0.5) * 0.0065;
+            if (d + nJitter < 0.014) {
+              float bite = smoothstep(0.014, 0.002, d + nJitter);
+              fuel = min(fuel, mix(fuel, 0.10, bite));
+              prevHeat = max(prevHeat, bite * 1.0);
+            }
+          }
+
+          // Sample 8-neighborhood (both fuel burn pressure & diffused heat band!)
+          vec4 sS  = texture2D(uState, clamp(vUv + vec2( 0.0,      -uTexel.y), 0.0, 1.0));
+          vec4 sN  = texture2D(uState, clamp(vUv + vec2( 0.0,       uTexel.y), 0.0, 1.0));
+          vec4 sE  = texture2D(uState, clamp(vUv + vec2( uTexel.x,  0.0     ), 0.0, 1.0));
+          vec4 sW  = texture2D(uState, clamp(vUv + vec2(-uTexel.x,  0.0     ), 0.0, 1.0));
+          vec4 sSE = texture2D(uState, clamp(vUv + vec2( uTexel.x, -uTexel.y), 0.0, 1.0));
+          vec4 sSW = texture2D(uState, clamp(vUv + vec2(-uTexel.x, -uTexel.y), 0.0, 1.0));
+          vec4 sNE = texture2D(uState, clamp(vUv + vec2( uTexel.x,  uTexel.y), 0.0, 1.0));
+          vec4 sNW = texture2D(uState, clamp(vUv + vec2(-uTexel.x,  uTexel.y), 0.0, 1.0));
+
+          float maxNHeat = max(
+            max(max(sS.b, sN.b), max(sE.b, sW.b)),
+            max(max(sSE.b, sSW.b), max(sNE.b, sNW.b))
+          );
+
+          if (fuel <= 0.0002) {
+            // Fully burned away; heat cools smoothly leaving a crisp glowing rim band
+            float coolHeat = max(prevHeat * 0.90, maxNHeat * 0.68) - uDt * 1.65;
+            gl_FragColor = vec4(0.0, 0.0, clamp(coolHeat, 0.0, 1.0), 1.0);
+            return;
+          }
+
+          float bS  = smoothstep(0.76, 0.16, unpackFuel(sS))  * 1.15;
+          float bN  = smoothstep(0.76, 0.16, unpackFuel(sN))  * 0.90;
+          float bE  = smoothstep(0.76, 0.16, unpackFuel(sE))  * 1.00;
+          float bW  = smoothstep(0.76, 0.16, unpackFuel(sW))  * 1.00;
+          float bSE = smoothstep(0.76, 0.16, unpackFuel(sSE)) * 0.78;
+          float bSW = smoothstep(0.76, 0.16, unpackFuel(sSW)) * 0.78;
+          float bNE = smoothstep(0.76, 0.16, unpackFuel(sNE)) * 0.64;
+          float bNW = smoothstep(0.76, 0.16, unpackFuel(sNW)) * 0.64;
+
+          float maxB = max(max(max(bS, bN), max(bE, bW)), max(max(bSE, bSW), max(bNE, bNW)));
+          float avgB = (bS + bN + bE + bW + bSE + bSW + bNE + bNW) / 6.89;
+
+          float burnStep = 0.0;
+          if (maxB > 0.015 || fuel < 0.94) {
+            vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
+            // Organic flickering air draft
+            float draft = 0.55 + 0.90 * vnoise(p * 24.0 + vec2(sin(uTime * 0.6) * 0.4, -uTime * 1.25));
+
+            // Extreme contrast: dry veins creep steadily while dense knots stall & become trapped islands!
+            float veinFactor = 0.025 + 0.975 * pow(perm.r, 2.25);
+            float fiberFactor = 0.52 + 0.85 * perm.g;
+
+            float drive = clamp(maxB * 0.68 + avgB * 0.32, 0.0, 1.0);
+            float rate = drive * veinFactor * fiberFactor * draft;
+
+            // Only when surrounded on most sides does a trapped island slowly smolder inward & vanish!
+            rate += smoothstep(0.62, 0.96, avgB) * (0.28 + 0.24 * perm.g);
+
+            // Self-sustaining combustion once pixel catches fire
+            if (fuel < 0.86) {
+              rate += smoothstep(0.86, 0.14, fuel) * (0.18 + 0.42 * perm.r);
+            }
+
+            // Slow, meditative, hypnotic spread (~9-13s for full sheet, ~4-6s with multi-click!)
+            burnStep = rate * uDt * 18.5;
+          }
+
+          float newFuel = max(0.0, fuel - burnStep);
+
+          // Rich active combustion band along every actively smoldering edge & trapped island!
+          float rimActive = smoothstep(0.01, 0.22, newFuel) * smoothstep(0.96, 0.42, newFuel);
+          float instantHeat = max(
+            clamp(burnStep * 42.0, 0.0, 1.0) * rimActive,
+            rimActive * 0.72
+          );
+          float diffusedHeat = max(prevHeat * 0.92, maxNHeat * 0.76);
+          float newHeat = mix(diffusedHeat, instantHeat, 0.45);
+
+          vec2 fuelRG = packFuel(newFuel);
+          gl_FragColor = vec4(fuelRG.x, fuelRG.y, clamp(newHeat, 0.0, 1.0), 1.0);
+        }
+      `;
+
+      // Pass D: Downsample simulation state into tiny 64x40 buffer for exact JS smoke/ash/completion tracking
+      const SAMPLE_FRAG_SRC = `
+        precision highp float;
+        varying vec2 vUv;
+        uniform sampler2D uState;
+        void main() {
+          gl_FragColor = texture2D(uState, vUv);
+        }
+      `;
+
+      // Pass E: Final High-DPI Paper, Charred Rim, Painterly Colored Flames & Realistic Rising Smoke
+      const DISPLAY_FRAG_SRC = `
+        precision highp float;
+        varying vec2 vUv;
+
+        uniform sampler2D uTexCurrent;
+        uniform sampler2D uTexNext;
+        uniform sampler2D uState;
+        uniform sampler2D uPerm;
+        uniform vec2 uSimSize;
+        uniform vec2 uResolution;
+        uniform float uTime;
+        uniform vec3 uFlameOuter;
+        uniform vec3 uFlameMid;
+        uniform vec3 uFlameInner;
+        uniform float uGlobalProgress;
+        uniform float uHasActiveFire;
+
+        ${COMMON_NOISE_GLSL}
+
+        float unpackFuel(vec4 t) {
+          return (floor(t.r * 255.0 + 0.5) * 256.0 + floor(t.g * 255.0 + 0.5)) / 65535.0;
+        }
+
+        // Manual bilinear interpolation on unpacked 16-bit fuel -> zero 8-bit carry artifacts!
+        vec2 sampleFuelHeat(vec2 uv) {
+          vec2 pos = clamp(uv, 0.0, 1.0) * uSimSize - 0.5;
+          vec2 f = fract(pos);
+          vec2 base = (floor(pos) + 0.5) / uSimSize;
+          vec2 dx = vec2(1.0 / uSimSize.x, 0.0);
+          vec2 dy = vec2(0.0, 1.0 / uSimSize.y);
+
+          vec4 t00 = texture2D(uState, clamp(base, 0.0, 1.0));
+          vec4 t10 = texture2D(uState, clamp(base + dx, 0.0, 1.0));
+          vec4 t01 = texture2D(uState, clamp(base + dy, 0.0, 1.0));
+          vec4 t11 = texture2D(uState, clamp(base + dx + dy, 0.0, 1.0));
+
+          float f00 = unpackFuel(t00), f10 = unpackFuel(t10);
+          float f01 = unpackFuel(t01), f11 = unpackFuel(t11);
+          float fuel = mix(mix(f00, f10, f.x), mix(f01, f11, f.x), f.y);
+          float heat = mix(mix(t00.b, t10.b, f.x), mix(t01.b, t11.b, f.x), f.y);
+          return vec2(fuel, heat);
+        }
+
+        void main() {
+          vec3 curCol = texture2D(uTexCurrent, vUv).rgb;
+          if (uHasActiveFire < 0.5) {
+            gl_FragColor = vec4(curCol, 1.0);
+            return;
+          }
+
+          vec3 nextCol = texture2D(uTexNext, vUv).rgb;
+          float aspect = uResolution.x / uResolution.y;
+          vec2 p = (vUv - 0.5) * vec2(aspect, 1.0);
+
+          vec2 fh = sampleFuelHeat(vUv);
+          vec3 perm = texture2D(uPerm, vUv).rgb;
+
+          // Add razor-crisp high-frequency paper-fiber edge perturbation
+          float microCrinkle = vnoise(p * 115.0 + perm.b * 4.0);
+          float fuel = fh.x + (perm.b - 0.5) * 0.045 + (microCrinkle - 0.5) * 0.022;
+          float heat = fh.y;
+
+          // Physical cutout threshold at fuel == 0.30
+          float cut = 0.30;
+          float edgeDist = fuel - cut;
+
+          // -------------------------------------------------------------------
+          // 1. Underneath sheet with tactile recessed tone & curled-edge shadow
+          // -------------------------------------------------------------------
+          float settle = smoothstep(0.84, 1.0, uGlobalProgress);
+          vec3 recessedTint = mix(vec3(0.928, 0.930, 0.936), vec3(1.0), settle);
+          vec3 underCol = nextCol * recessedTint;
+
+          if (edgeDist < 0.14) {
+            vec2 shadowUv = vUv + vec2(-0.0055 / aspect, 0.0075);
+            float fShadow = sampleFuelHeat(shadowUv).x;
+            float castShadow = smoothstep(cut - 0.14, cut + 0.08, fShadow);
+            float rimAO = exp(-max(0.0, -edgeDist) * 14.0);
+            float shadowAmt = clamp(castShadow * 0.13 + rimAO * 0.10, 0.0, 0.22) * (1.0 - settle);
+            underCol *= (1.0 - shadowAmt);
+          }
+
+          // -------------------------------------------------------------------
+          // 2. Top sheet: warm paper singe, dark charred rim & glowing ember edge
+          // -------------------------------------------------------------------
+          vec3 topCol = curCol;
+          float flicker = 0.72 + 0.28 * sin(uTime * 11.0 + perm.g * 22.0 + perm.b * 12.0);
+
+          // Delicate toasted paper heat halo ahead of the char
+          float scorchMask = smoothstep(0.32, 0.02, edgeDist) * step(0.0, edgeDist);
+          vec3 toastedPaper = curCol * vec3(0.92, 0.78, 0.61);
+          topCol = mix(topCol, toastedPaper, scorchMask * 0.54);
+
+          // Burnt-sienna / copper singed paper border
+          float siennaBand = smoothstep(0.16, 0.035, edgeDist) * step(0.0, edgeDist);
+          vec3 siennaCol = vec3(0.58, 0.24, 0.08);
+          topCol = mix(topCol, siennaCol, siennaBand * 0.84);
+
+          // Crisp carbonized espresso-black charred paper edge
+          float charRim = smoothstep(0.085, 0.008, edgeDist) * step(-0.02, edgeDist);
+          vec3 carbonCol = vec3(0.12, 0.06, 0.03) * (0.72 + 0.45 * microCrinkle);
+          topCol = mix(topCol, carbonCol, charRim * 0.96);
+
+          // Incandescent smoldering ember filament pulsing along active edge
+          float activeEdge = exp(-abs(edgeDist - 0.015) * 48.0);
+          float emberGlow = activeEdge * (0.45 + 0.55 * heat) * flicker;
+          topCol = mix(topCol, uFlameInner * 1.18, clamp(emberGlow * 0.88, 0.0, 0.92));
+
+          float paperMask = smoothstep(-0.014, 0.014, edgeDist);
+          vec3 col = mix(underCol, topCol, paperMask);
+
+          // -------------------------------------------------------------------
+          // 3. Dedicated Fine-Step Watercolor Flame March + Tall Curling Smoke March
+          //    Tight flame steps ensure we NEVER skip over the thin charred rim!
+          // -------------------------------------------------------------------
+          float flameAccum = 0.0;
+          float coreAccum = 0.0;
+          float smokeRibbon = 0.0;
+          float smokeVeil = 0.0;
+
+          float dither = hash21(gl_FragCoord.xy + vec2(fract(uTime * 11.3) * 89.0, fract(uTime * 6.7) * 47.0));
+          float tFlame = uTime * 2.4;
+          float tSmoke = uTime * 0.72;
+
+          // Slender flickering vertical flame tongues
+          float colA = fbm3(vec2(p.x * 24.0, p.y * 2.8 - tFlame * 0.72));
+          float colB = fbm3(vec2(p.x * 54.0 + 3.1, p.y * 5.6 - tFlame * 1.25));
+          float tonguePeak = pow(clamp(colA * 0.62 + colB * 0.38, 0.0, 1.0), 1.55);
+          float flameMaxH = 0.018 + tonguePeak * 0.135;
+
+          // 3a. Tightly-spaced flame ray-march (14 fine steps -> rich vivid flames on EVERY rim!)
+          float flameStep = 0.0068;
+          for (int k = 0; k < 14; k++) {
+            float fk = float(k);
+            float dy = (fk + dither) * flameStep;
+            if (dy > flameMaxH) break;
+
+            float sway = (fbm3(vec2(p.x * 16.0, p.y * 7.5 - tFlame * 0.9)) - 0.5) * dy * 1.45;
+            vec2 sampleUv = vUv - vec2(sway / aspect, dy);
+            if (sampleUv.y < 0.0) break;
+
+            vec2 sfh = sampleFuelHeat(sampleUv);
+            // Detect active smoldering rim via both diffused heat & fuel contour band
+            float fuelBand = smoothstep(0.02, 0.28, sfh.x) * smoothstep(0.88, 0.34, sfh.x);
+            float rimHit = clamp(sfh.y * 1.25 + fuelBand * 0.65, 0.0, 1.0);
+
+            if (rimHit > 0.03) {
+              float normF = dy / max(0.018, flameMaxH);
+              float hFade = pow(clamp(1.0 - normF, 0.0, 1.0), 1.25);
+              float streak = 0.52 + 0.72 * smoothstep(0.22, 0.78, colB);
+              flameAccum += rimHit * hFade * streak * 0.22;
+              if (k < 4) {
+                coreAccum += rimHit * hFade * 0.32;
+              }
+            }
+          }
+
+          // 3b. Tall, airy curling smoke ribbon march (reaches 140-260px above the ember!)
+          float smokeCurlNoise = fbm3(vec2(p.x * 7.5 + sin(p.y * 4.2 - tSmoke) * 0.45, p.y * 2.8 - tSmoke));
+          float smokeFilament = 1.0 - abs(fbm3(vec2(p.x * 14.0 + smokeCurlNoise * 1.85, p.y * 3.8 - tSmoke * 1.3)) * 2.0 - 1.0);
+          smokeFilament = pow(clamp(smokeFilament, 0.0, 1.0), 1.9);
+          float smokeMaxH = 0.13 + smokeCurlNoise * 0.24;
+
+          float smokeStep = 0.0155;
+          for (int j = 0; j < 14; j++) {
+            float fj = float(j);
+            float dy = (fj + dither) * smokeStep + 0.006;
+            if (dy > smokeMaxH) break;
+
+            // Graceful S-curved thermal air drift rising off smoldering paper
+            float windCurl = sin(p.y * 8.2 - tSmoke * 2.1 + smokeCurlNoise * 5.8) * dy * (1.1 + dy * 3.6);
+            vec2 sampleUv = vUv - vec2(windCurl / aspect, dy);
+            if (sampleUv.y < 0.0) break;
+
+            vec2 sfh = sampleFuelHeat(sampleUv);
+            float fuelBand = smoothstep(0.02, 0.28, sfh.x) * smoothstep(0.86, 0.34, sfh.x);
+            float rimHit = clamp(sfh.y * 1.15 + fuelBand * 0.55, 0.0, 1.0);
+
+            if (rimHit > 0.03) {
+              float normS = dy / max(0.08, smokeMaxH);
+              float riseProfile = smoothstep(0.02, 0.22, normS) * pow(clamp(1.0 - normS, 0.0, 1.0), 1.15);
+              smokeRibbon += rimHit * riseProfile * (0.35 + 1.45 * smokeFilament) * 0.14;
+              smokeVeil   += rimHit * riseProfile * 0.065;
+            }
+          }
+
+          // Composite realistic translucent curling wood-paper smoke wisps on bright paper
+          float totalSmoke = clamp(smokeRibbon * 0.55 + smokeVeil * 0.38, 0.0, 0.44);
+          if (totalSmoke > 0.002) {
+            vec3 smokeColor = mix(vec3(0.42, 0.40, 0.39), uFlameMid * 0.55 + vec3(0.30), 0.14);
+            col = mix(col, smokeColor, totalSmoke * 0.62);
+          }
+
+          // Composite vivid translucent watercolor flames over paper & smoke base
+          float flameAlpha = clamp(flameAccum * 1.05, 0.0, 0.88);
+          if (flameAlpha > 0.002) {
+            float coreMix = clamp(coreAccum * 1.12, 0.0, 1.0);
+            vec3 flameCol = mix(uFlameMid, uFlameOuter, smoothstep(0.06, 0.52, flameAlpha));
+            flameCol = mix(flameCol, uFlameInner, smoothstep(0.36, 0.96, coreMix));
+
+            vec3 multiplied = col * mix(vec3(1.0), flameCol * 1.02, flameAlpha * 0.62);
+            vec3 blended = mix(multiplied, flameCol, flameAlpha * 0.76);
+            blended += uFlameInner * coreMix * 0.15;
+            col = blended;
+          }
+
+          // Crisp glowing ember rim right along the active burning contour
+          float rimGlow = activeEdge * (0.42 + 0.48 * flicker) * clamp(heat * 1.4 + 0.25, 0.0, 1.0);
+          col = mix(col, mix(uFlameOuter, uFlameInner, 0.72), clamp(rimGlow * 0.60, 0.0, 0.64));
+
+          gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+        }
+      `;
+
+      // =========================================================================
+      // 5. VOLUMETRIC CURLING SMOKE PUFFS + ASH FLAKES + EMBER RINGS (2D Overlay)
+      // =========================================================================
+      class AtmosphericFX {
+        constructor() {
+          this.smoke = [];
+          this.ash = [];
+          this.embers = [];
+          this.smokeSprite = this.buildSmokeSprite();
+        }
+
+        // Pre-rendered ultra-soft organic smoke puff texture for silky 60fps compositing
+        buildSmokeSprite() {
+          const s = 128;
+          const c = document.createElement('canvas');
+          c.width = s;
+          c.height = s;
+          const ctx = c.getContext('2d');
+
+          // Layered asymmetric soft blobs so each puff looks wispy, never like a uniform circle
+          const lobes = [
+            { x: 64, y: 64, r: 52, a: 0.34 },
+            { x: 48, y: 56, r: 36, a: 0.26 },
+            { x: 80, y: 58, r: 35, a: 0.24 },
+            { x: 62, y: 46, r: 32, a: 0.22 }
+          ];
+          lobes.forEach(l => {
+            const g = ctx.createRadialGradient(l.x, l.y, 2, l.x, l.y, l.r);
+            g.addColorStop(0, `rgba(98, 94, 90, ${l.a})`);
+            g.addColorStop(0.48, `rgba(124, 118, 112, ${(l.a * 0.48).toFixed(3)})`);
+            g.addColorStop(1, 'rgba(140, 136, 132, 0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, s, s);
+          });
+          return c;
+        }
+
+        spawnClickBurst(x, y, emberHex) {
+          for (let i = 0; i < 8; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 14 + Math.random() * 48;
+            this.embers.push({
+              x, y,
+              vx: Math.cos(ang) * spd,
+              vy: Math.sin(ang) * spd - 18,
+              life: 0,
+              maxLife: 0.35 + Math.random() * 0.40,
+              size: 1.0 + Math.random() * 1.7,
+              hollow: Math.random() > 0.5,
+              color: emberHex
+            });
+          }
+          // Immediate delicate first curl of smoke from match ignition
+          for (let i = 0; i < 3; i++) {
+            this.spawnSmokePuff(x + (Math.random() - 0.5) * 10, y - 4, 1.1);
+          }
+        }
+
+        spawnSmokePuff(x, y, scaleMul = 1.0) {
+          if (this.smoke.length >= 85) return;
+          this.smoke.push({
+            x,
+            y,
+            vx: (Math.random() - 0.5) * 14,
+            vy: -18 - Math.random() * 26,
+            size: (32 + Math.random() * 40) * scaleMul,
+            grow: 28 + Math.random() * 34,
+            rot: Math.random() * Math.PI * 2,
+            vrot: (Math.random() - 0.5) * 0.65,
+            phase: Math.random() * Math.PI * 2,
+            life: 0,
+            maxLife: 2.6 + Math.random() * 2.2,
+            opacity: 0.20 + Math.random() * 0.18
+          });
+        }
+
+        spawnEdgeFX(x, y, emberHex) {
+          if (Math.random() < 0.42) {
+            this.spawnSmokePuff(x + (Math.random() - 0.5) * 8, y - 4, 0.85 + Math.random() * 0.55);
+          }
+
+          if (Math.random() < 0.22 && this.ash.length < 34) {
+            const verts = [];
+            const sides = 4 + Math.floor(Math.random() * 3);
+            const rx = 1.8 + Math.random() * 3.4;
+            const ry = 1.0 + Math.random() * 2.2;
+            for (let i = 0; i < sides; i++) {
+              const a = (i / sides) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+              const rr = 0.65 + Math.random() * 0.45;
+              verts.push([Math.cos(a) * rx * rr, Math.sin(a) * ry * rr]);
+            }
+            this.ash.push({
+              x, y,
+              vx: (Math.random() - 0.5) * 20,
+              vy: -16 - Math.random() * 34,
+              rot: Math.random() * Math.PI * 2,
+              vrot: (Math.random() - 0.5) * 3.2,
+              tumble: Math.random() * Math.PI * 2,
+              vtumble: 2.0 + Math.random() * 3.4,
+              life: 0,
+              maxLife: 1.4 + Math.random() * 1.6,
+              shade: 40 + Math.floor(Math.random() * 36),
+              verts
+            });
+          }
+
+          if (Math.random() < 0.24 && this.embers.length < 30) {
+            this.embers.push({
+              x: x + (Math.random() - 0.5) * 6,
+              y: y + (Math.random() - 0.5) * 6,
+              vx: (Math.random() - 0.5) * 18,
+              vy: -22 - Math.random() * 44,
+              life: 0,
+              maxLife: 0.75 + Math.random() * 1.05,
+              size: 1.1 + Math.random() * 1.9,
+              hollow: Math.random() > 0.35,
+              color: emberHex
+            });
+          }
+        }
+
+        updateAndDraw(ctx, dt, time) {
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+          // 1. Soft curling smoke plumes drifting slowly upward
+          for (let i = this.smoke.length - 1; i >= 0; i--) {
+            const s = this.smoke[i];
+            s.life += dt;
+            if (s.life >= s.maxLife) {
+              this.smoke.splice(i, 1);
+              continue;
+            }
+            const t = s.life / s.maxLife;
+            // Gentle wavy wind curl
+            const curl = Math.sin(time * 1.15 + s.phase + t * 3.2) * (10 + t * 22);
+            s.x += (s.vx + curl) * dt;
+            s.y += s.vy * dt;
+            s.vy *= 0.994;
+            s.size += s.grow * dt;
+            s.rot += s.vrot * dt;
+
+            const fadeIn = Math.min(1, t * 4.5);
+            const fadeOut = Math.pow(1 - t, 1.45);
+            const alpha = s.opacity * fadeIn * fadeOut;
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(s.x, s.y);
+            ctx.rotate(s.rot);
+            ctx.scale(1.18, 0.86);
+            ctx.drawImage(this.smokeSprite, -s.size * 0.5, -s.size * 0.5, s.size, s.size);
+            ctx.restore();
+          }
+
+          // 2. Tumbling charred ash flakes
+          for (let i = this.ash.length - 1; i >= 0; i--) {
+            const p = this.ash[i];
+            p.life += dt;
+            if (p.life >= p.maxLife) {
+              this.ash.splice(i, 1);
+              continue;
+            }
+            const t = p.life / p.maxLife;
+            const drift = Math.sin(time * 2.0 + p.tumble) * 16;
+            p.x += (p.vx + drift) * dt;
+            p.y += p.vy * dt;
+            p.vy *= 0.99;
+            p.rot += p.vrot * dt;
+            p.tumble += p.vtumble * dt;
+
+            const fadeIn = Math.min(1, t * 5);
+            const fadeOut = 1 - Math.max(0, (t - 0.62) / 0.38);
+            const alpha = fadeIn * fadeOut * 0.74;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.scale(1, 0.35 + 0.65 * Math.abs(Math.cos(p.tumble)));
+            ctx.fillStyle = `rgba(${p.shade}, ${p.shade - 4}, ${p.shade - 8}, ${alpha.toFixed(3)})`;
+            ctx.beginPath();
+            ctx.moveTo(p.verts[0][0], p.verts[0][1]);
+            for (let j = 1; j < p.verts.length; j++) {
+              ctx.lineTo(p.verts[j][0], p.verts[j][1]);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+
+          // 3. Glowing ember sparks & delicate hollow rings
+          for (let i = this.embers.length - 1; i >= 0; i--) {
+            const e = this.embers[i];
+            e.life += dt;
+            if (e.life >= e.maxLife) {
+              this.embers.splice(i, 1);
+              continue;
+            }
+            const t = e.life / e.maxLife;
+            e.x += (e.vx + Math.sin(time * 5 + i) * 11) * dt;
+            e.y += e.vy * dt;
+            e.vy -= 8 * dt;
+            e.vx *= 0.97;
+
+            const alpha = (1 - Math.max(0, (t - 0.42) / 0.58)) * 0.90;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            if (e.hollow) {
+              ctx.strokeStyle = e.color;
+              ctx.lineWidth = 1.1;
+              ctx.beginPath();
+              ctx.arc(e.x, e.y, e.size * (1.0 - t * 0.25), 0, Math.PI * 2);
+              ctx.stroke();
+            } else {
+              ctx.fillStyle = e.color;
+              ctx.beginPath();
+              ctx.arc(e.x, e.y, e.size * (1.0 - t * 0.35), 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+        }
+      }
+
+      // =========================================================================
+      // 6. MAIN WEBGL CONTROLLER
+      // =========================================================================
+      const stage = document.getElementById('stage');
+      const glCanvas = document.getElementById('gl-canvas');
+      const fxCanvas = document.getElementById('fx-canvas');
+      const fxCtx = fxCanvas.getContext('2d');
+      const matchEl = document.getElementById('match-cursor');
+      const matchGlow = document.getElementById('match-glow');
+      const matchFlame = document.getElementById('match-flame');
+      const hintPill = document.getElementById('hint-pill');
+      const chapterTag = document.getElementById('chapter-tag');
+      const flameName = document.getElementById('flame-name');
+      const flameSub = document.getElementById('flame-sub');
+      const pageCounter = document.getElementById('page-counter');
+      const dotsContainer = document.getElementById('chapter-dots');
+      const soundBtn = document.getElementById('sound-btn');
+
+      const gl = glCanvas.getContext('webgl', {
+        alpha: false,
+        antialias: true,
+        preserveDrawingBuffer: false,
+        powerPreference: 'high-performance'
+      });
+
+      if (!gl) {
+        document.body.innerHTML = '<div style="padding:48px;font-family:Georgia,serif;">WebGL is required to view this interactive paper-burning experience.</div>';
+        return;
+      }
+
+      function createProgram(vsSrc, fsSrc) {
+        const vs = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vs, vsSrc);
+        gl.compileShader(vs);
+        if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+          console.error('VS error:', gl.getShaderInfoLog(vs));
+        }
+
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, fsSrc);
+        gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+          console.error('FS error:', gl.getShaderInfoLog(fs));
+        }
+
+        const prog = gl.createProgram();
+        gl.attachShader(prog, vs);
+        gl.attachShader(prog, fs);
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+          console.error('Program link error:', gl.getProgramInfoLog(prog));
+        }
+        return prog;
+      }
+
+      const progPerm    = createProgram(VERT_SRC, PERM_FRAG_SRC);
+      const progInit    = createProgram(VERT_SRC, INIT_FRAG_SRC);
+      const progSim     = createProgram(VERT_SRC, SIM_FRAG_SRC);
+      const progSample  = createProgram(VERT_SRC, SAMPLE_FRAG_SRC);
+      const progDisplay = createProgram(VERT_SRC, DISPLAY_FRAG_SRC);
+
+      const quadBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1,  1, -1, -1,  1,
+        -1,  1,  1, -1,  1,  1
+      ]), gl.STATIC_DRAW);
+
+      function bindQuad(prog) {
+        const loc = gl.getAttribLocation(prog, 'aPos');
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      }
+
+      function createTex(w, h, filter) {
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+        if (w > 0 && h > 0) {
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        }
+        return tex;
+      }
+
+      function createFBO(w, h, filter) {
+        const tex = createTex(w, h, filter);
+        const fbo = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return { fbo, tex, w, h };
+      }
+
+      function destroyFBO(obj) {
+        if (!obj) return;
+        gl.deleteFramebuffer(obj.fbo);
+        gl.deleteTexture(obj.tex);
+      }
+
+      function uploadCanvasToTex(tex, canvas) {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      }
+
+      // Uniform caches
+      const uPermLocs = {
+        aspect: gl.getUniformLocation(progPerm, 'uAspect'),
+        seed:   gl.getUniformLocation(progPerm, 'uSeed')
+      };
+      const uSimLocs = {
+        state:        gl.getUniformLocation(progSim, 'uState'),
+        perm:         gl.getUniformLocation(progSim, 'uPerm'),
+        texel:        gl.getUniformLocation(progSim, 'uTexel'),
+        aspect:       gl.getUniformLocation(progSim, 'uAspect'),
+        time:         gl.getUniformLocation(progSim, 'uTime'),
+        dt:           gl.getUniformLocation(progSim, 'uDt'),
+        igniteActive: gl.getUniformLocation(progSim, 'uIgniteActive'),
+        igniteUv:     gl.getUniformLocation(progSim, 'uIgniteUv')
+      };
+      const uSampleLocs = {
+        state: gl.getUniformLocation(progSample, 'uState')
+      };
+      const uDispLocs = {
+        texCurrent:     gl.getUniformLocation(progDisplay, 'uTexCurrent'),
+        texNext:        gl.getUniformLocation(progDisplay, 'uTexNext'),
+        state:          gl.getUniformLocation(progDisplay, 'uState'),
+        perm:           gl.getUniformLocation(progDisplay, 'uPerm'),
+        simSize:        gl.getUniformLocation(progDisplay, 'uSimSize'),
+        resolution:     gl.getUniformLocation(progDisplay, 'uResolution'),
+        time:           gl.getUniformLocation(progDisplay, 'uTime'),
+        flameOuter:     gl.getUniformLocation(progDisplay, 'uFlameOuter'),
+        flameMid:       gl.getUniformLocation(progDisplay, 'uFlameMid'),
+        flameInner:     gl.getUniformLocation(progDisplay, 'uFlameInner'),
+        globalProgress: gl.getUniformLocation(progDisplay, 'uGlobalProgress'),
+        hasActiveFire:  gl.getUniformLocation(progDisplay, 'uHasActiveFire')
+      };
+
+      // App state
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      let texCurrent = createTex(0, 0, gl.LINEAR);
+      let texNext = createTex(0, 0, gl.LINEAR);
+
+      let simW = 512, simH = 320;
+      let fboPerm = null;
+      let fboSimA = null;
+      let fboSimB = null;
+
+      const SAMPLE_W = 64, SAMPLE_H = 40;
+      const fboSample = createFBO(SAMPLE_W, SAMPLE_H, gl.NEAREST);
+      const samplePixels = new Uint8Array(SAMPLE_W * SAMPLE_H * 4);
+      let frameCounter = 0;
+
+      let currentIndex = 0;
+      let nextIndex = 1;
+      let pageSeed = 2.41;
+      let isBurning = false;
+      let globalProgress = 0;
+      let hasInteracted = false;
+      let isPointerDown = false;
+      let lastDragPoint = null;
+      let pendingIgnitions = []; // Queue of { uvx, uvy }
+
+      const audio = new FireAudio();
+      const fx = new AtmosphericFX();
+
+      let startTimeMs = performance.now();
+      let lastFrameMs = startTimeMs;
+
+      // Chapter navigation dots
+      PASSAGES.forEach((p, idx) => {
+        const dot = document.createElement('button');
+        dot.type = 'button';
+        dot.className = 'chapter-dot';
+        dot.title = `${p.roman}. ${p.title}`;
+        dot.style.setProperty('--accent', p.accentHex);
+        dot.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          jumpToChapter(idx);
+        });
+        dotsContainer.appendChild(dot);
+      });
+
+      function updateChromeUI() {
+        const cur = PASSAGES[currentIndex];
+        chapterTag.textContent = `( HOMER · ${cur.roman} / V )`;
+        pageCounter.textContent = `${String(currentIndex + 1).padStart(2, '0')} / ${String(PASSAGES.length).padStart(2, '0')}`;
+        flameName.textContent = cur.flameEn;
+        flameSub.textContent = cur.bookSub;
+
+        const dots = dotsContainer.querySelectorAll('.chapter-dot');
+        dots.forEach((d, idx) => d.classList.toggle('active', idx === currentIndex));
+      }
+
+      function generatePermeabilityMap() {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fboPerm.fbo);
+        gl.viewport(0, 0, simW, simH);
+        gl.useProgram(progPerm);
+        bindQuad(progPerm);
+        gl.uniform1f(uPermLocs.aspect, width / height);
+        gl.uniform1f(uPermLocs.seed, pageSeed);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      }
+
+      function resetSimulationState() {
+        [fboSimA, fboSimB].forEach(target => {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+          gl.viewport(0, 0, simW, simH);
+          gl.useProgram(progInit);
+          bindQuad(progInit);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+        });
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        isBurning = false;
+        globalProgress = 0;
+        pendingIgnitions = [];
+      }
+
+      function rebuildTextures() {
+        uploadCanvasToTex(texCurrent, renderLetterCanvas(currentIndex, width, height, dpr));
+        uploadCanvasToTex(texNext, renderLetterCanvas(nextIndex, width, height, dpr));
+      }
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        glCanvas.width = Math.max(1, Math.floor(width * dpr));
+        glCanvas.height = Math.max(1, Math.floor(height * dpr));
+        fxCanvas.width = Math.max(1, Math.floor(width * dpr));
+        fxCanvas.height = Math.max(1, Math.floor(height * dpr));
+        fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const aspect = width / height;
+        simW = 512;
+        simH = Math.max(200, Math.min(640, Math.round(simW / aspect)));
+
+        destroyFBO(fboPerm);
+        destroyFBO(fboSimA);
+        destroyFBO(fboSimB);
+
+        fboPerm = createFBO(simW, simH, gl.LINEAR);
+        fboSimA = createFBO(simW, simH, gl.NEAREST);
+        fboSimB = createFBO(simW, simH, gl.NEAREST);
+
+        generatePermeabilityMap();
+        resetSimulationState();
+
+        paperBaseCanvas = null;
+        rebuildTextures();
+      }
+
+      function igniteAt(clientX, clientY) {
+        if (!hasInteracted) {
+          hasInteracted = true;
+          hintPill.classList.add('hidden');
+        }
+        const uvx = Math.max(0.005, Math.min(0.995, clientX / width));
+        const uvy = Math.max(0.005, Math.min(0.995, 1.0 - clientY / height));
+        pendingIgnitions.push({ uvx, uvy });
+        isBurning = true;
+
+        const cur = PASSAGES[currentIndex];
+        fx.spawnClickBurst(clientX, clientY, cur.emberHex);
+        audio.playIgnite();
+
+        matchEl.classList.add('striking');
+        matchGlow.setAttribute('opacity', '0.95');
+        matchFlame.setAttribute('opacity', '1');
+        clearTimeout(matchEl._strikeTimer);
+        matchEl._strikeTimer = setTimeout(() => {
+          matchEl.classList.remove('striking');
+          matchGlow.setAttribute('opacity', '0.28');
+          matchFlame.setAttribute('opacity', '0');
+        }, 280);
+      }
+
+      function jumpToChapter(targetIdx) {
+        if (targetIdx === currentIndex && !isBurning) return;
+        nextIndex = targetIdx;
+        uploadCanvasToTex(texNext, renderLetterCanvas(nextIndex, width, height, dpr));
+        if (!isBurning) {
+          igniteAt(width * (0.40 + Math.random() * 0.20), height * (0.42 + Math.random() * 0.16));
+        }
+      }
+
+      function completeBurnTransition() {
+        currentIndex = nextIndex;
+        nextIndex = (currentIndex + 1) % PASSAGES.length;
+        pageSeed = 1.0 + Math.random() * 60.0;
+
+        // Seamless zero-flicker page swap
+        const tmp = texCurrent;
+        texCurrent = texNext;
+        texNext = tmp;
+
+        uploadCanvasToTex(texNext, renderLetterCanvas(nextIndex, width, height, dpr));
+        generatePermeabilityMap();
+        resetSimulationState();
+        updateChromeUI();
+      }
+
+      function stepSimulation(now, dt, ignitePt) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fboSimB.fbo);
+        gl.viewport(0, 0, simW, simH);
+        gl.useProgram(progSim);
+        bindQuad(progSim);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, fboSimA.tex);
+        gl.uniform1i(uSimLocs.state, 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, fboPerm.tex);
+        gl.uniform1i(uSimLocs.perm, 1);
+
+        gl.uniform2f(uSimLocs.texel, 1.0 / simW, 1.0 / simH);
+        gl.uniform1f(uSimLocs.aspect, width / height);
+        gl.uniform1f(uSimLocs.time, now);
+        gl.uniform1f(uSimLocs.dt, dt);
+
+        if (ignitePt) {
+          gl.uniform1f(uSimLocs.igniteActive, 1.0);
+          gl.uniform2f(uSimLocs.igniteUv, ignitePt.uvx, ignitePt.uvy);
+        } else {
+          gl.uniform1f(uSimLocs.igniteActive, 0.0);
+          gl.uniform2f(uSimLocs.igniteUv, -1.0, -1.0);
+        }
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        // Ping-pong swap
+        const tmp = fboSimA;
+        fboSimA = fboSimB;
+        fboSimB = tmp;
+      }
+
+      // Throttled 64x40 readback (every 8 frames) -> 100% accurate active edge for smoke, ash & completion
+      function sampleActiveContourAndProgress(dt) {
+        if (!isBurning) {
+          audio.update(dt, 0);
+          return;
+        }
+
+        frameCounter++;
+        if (frameCounter % 8 !== 0) {
+          const activeIntensity = Math.sin(Math.max(0.05, Math.min(0.99, globalProgress)) * Math.PI);
+          audio.update(dt, activeIntensity);
+          return;
+        }
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fboSample.fbo);
+        gl.viewport(0, 0, SAMPLE_W, SAMPLE_H);
+        gl.useProgram(progSample);
+        bindQuad(progSample);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, fboSimA.tex);
+        gl.uniform1i(uSampleLocs.state, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.readPixels(0, 0, SAMPLE_W, SAMPLE_H, gl.RGBA, gl.UNSIGNED_BYTE, samplePixels);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        let burnedCells = 0;
+        let activeCells = 0;
+        const edgeCandidates = [];
+        const total = SAMPLE_W * SAMPLE_H;
+
+        for (let y = 0; y < SAMPLE_H; y++) {
+          for (let x = 0; x < SAMPLE_W; x++) {
+            const idx = (y * SAMPLE_W + x) * 4;
+            const fuel = (samplePixels[idx] * 256 + samplePixels[idx + 1]) / 65535;
+            const heat = samplePixels[idx + 2] / 255;
+
+            if (fuel < 0.26) {
+              burnedCells++;
+            }
+            if ((fuel > 0.08 && fuel < 0.82) || heat > 0.14) {
+              activeCells++;
+              edgeCandidates.push({ x, y });
+            } else if (fuel >= 0.82) {
+              activeCells++;
+            }
+          }
+        }
+
+        globalProgress = burnedCells / total;
+
+        // Spawn realistic curling smoke puffs, ash flakes & ember rings strictly along exact burning rims!
+        const cur = PASSAGES[currentIndex];
+        if (edgeCandidates.length > 0) {
+          const spawnCount = Math.min(10, 3 + Math.floor(edgeCandidates.length / 22));
+          for (let i = 0; i < spawnCount; i++) {
+            const pick = edgeCandidates[Math.floor(Math.random() * edgeCandidates.length)];
+            const sx = ((pick.x + Math.random()) / SAMPLE_W) * width;
+            const sy = (1.0 - (pick.y + Math.random()) / SAMPLE_H) * height;
+            fx.spawnEdgeFX(sx, sy, cur.emberHex);
+          }
+        }
+
+        const fireSound = Math.min(1, (edgeCandidates.length / 90) * 1.15);
+        audio.update(dt, fireSound);
+
+        // Complete transition cleanly once virtually all fuel & lingering ember heat have burned away
+        if (burnedCells >= total - 2 && edgeCandidates.length === 0) {
+          completeBurnTransition();
+        }
+      }
+
+      // =========================================================================
+      // 7. POINTER & UI EVENTS
+      // =========================================================================
+      stage.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        isPointerDown = true;
+        lastDragPoint = { x: e.clientX, y: e.clientY };
+        igniteAt(e.clientX, e.clientY);
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'touch') {
+          matchEl.style.transform = `translate3d(${e.clientX - 6}px, ${e.clientY - 6}px, 0)`;
+          const overControl = Boolean(e.target.closest('.chrome-btn, .chapter-dot'));
+          matchEl.classList.toggle('visible', !overControl);
+          stage.classList.toggle('match-cursor', !overControl);
+        }
+
+        if (isPointerDown && lastDragPoint) {
+          const dist = Math.hypot(e.clientX - lastDragPoint.x, e.clientY - lastDragPoint.y);
+          if (dist > 78) {
+            lastDragPoint = { x: e.clientX, y: e.clientY };
+            igniteAt(e.clientX, e.clientY);
+          }
+        }
+      });
+
+      window.addEventListener('pointerup', () => {
+        isPointerDown = false;
+        lastDragPoint = null;
+      });
+
+      document.addEventListener('pointerleave', () => {
+        matchEl.classList.remove('visible');
+      });
+
+      soundBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const on = audio.toggle();
+        soundBtn.textContent = on ? '( SOUND ON )' : '( MUTED )';
+      });
+
+      let resizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (Math.abs(window.innerWidth - width) > 20 || Math.abs(window.innerHeight - height) > 20) {
+            resize();
+          }
+        }, 140);
+      });
+
+      // =========================================================================
+      // 8. MAIN ANIMATION LOOP
+      // =========================================================================
+      function render(nowMs) {
+        const dt = Math.min(0.04, Math.max(0.001, (nowMs - lastFrameMs) * 0.001));
+        lastFrameMs = nowMs;
+        const now = (nowMs - startTimeMs) * 0.001;
+
+        if (isBurning) {
+          // Process any queued clicks + 2 smooth substeps for frame-rate-independent slow creeping
+          const firstClick = pendingIgnitions.length > 0 ? pendingIgnitions.shift() : null;
+          stepSimulation(now, dt * 0.5, firstClick);
+          while (pendingIgnitions.length > 0) {
+            stepSimulation(now, 0.001, pendingIgnitions.shift());
+          }
+          stepSimulation(now, dt * 0.5, null);
+        }
+
+        sampleActiveContourAndProgress(dt);
+
+        // Final high-DPI display pass
+        const cur = PASSAGES[currentIndex];
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+        gl.useProgram(progDisplay);
+        bindQuad(progDisplay);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texCurrent);
+        gl.uniform1i(uDispLocs.texCurrent, 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, texNext);
+        gl.uniform1i(uDispLocs.texNext, 1);
+
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, fboSimA.tex);
+        gl.uniform1i(uDispLocs.state, 2);
+
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, fboPerm.tex);
+        gl.uniform1i(uDispLocs.perm, 3);
+
+        gl.uniform2f(uDispLocs.simSize, simW, simH);
+        gl.uniform2f(uDispLocs.resolution, glCanvas.width, glCanvas.height);
+        gl.uniform1f(uDispLocs.time, now);
+        gl.uniform3fv(uDispLocs.flameOuter, cur.flameOuter);
+        gl.uniform3fv(uDispLocs.flameMid, cur.flameMid);
+        gl.uniform3fv(uDispLocs.flameInner, cur.flameInner);
+        gl.uniform1f(uDispLocs.globalProgress, globalProgress);
+        gl.uniform1f(uDispLocs.hasActiveFire, isBurning ? 1.0 : 0.0);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        // Update & composite curling volumetric smoke, ash flakes & embers
+        fx.updateAndDraw(fxCtx, dt, now);
+
+        requestAnimationFrame(render);
+      }
+
+      updateChromeUI();
+      resize();
+      requestAnimationFrame(render);
+
+      if (document.fonts && document.fonts.ready) {
+        Promise.race([
+          document.fonts.ready,
+          new Promise(resolve => setTimeout(resolve, 2500))
+        ]).then(() => {
+          rebuildTextures();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
