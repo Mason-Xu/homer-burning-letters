@@ -2,6 +2,8 @@
 
 An interactive, single-file WebGL paper-burning letter experience inspired by classical Homeric poetry and tactile handmade cotton stationery.
 
+![Homeric Burning Letters Preview](./docs/preview.png)
+
 Click or drag anywhere across the page with the wooden matchstick cursor to ignite the paper and watch a slow, irregular smoldering fire with curling wisps of smoke consume each epistle to reveal the next passage beneath.
 
 ## Highlights
